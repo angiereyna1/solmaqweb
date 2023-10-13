@@ -1,16 +1,30 @@
 <script setup>
-import { ref,onMounted } from "vue";
+/////////////////////////////////// TO DO ////////////////////////////////////
+// Optimizar codigo
+// agregar el del carrito 
+import { ref,onMounted, onBeforeMount } from "vue";
 import { loginStore } from "../stores/login";
 import router from "../router/index";
 
+const { cerrarSesion, getUser, getPermisos } = loginStore();
+
 const props = defineProps(["interfaz"]);
 const interfaz = props.interfaz;
+
 const title = ref("");
 const color = ref("");
-const { cerrarSesion } = loginStore();
+const visibleRoles = ref("");
+const visibleUsuarios = ref("");
+const visibleClientes = ref("");
+const visibleCatalogo = ref("");
+const visibleRFQ = ref("");
+const visiblePedidos = ref("");
+const visibleReportes = ref("");
+
+
 const mostrarMenu = ref(false); // Agrega esta línea para definir mostrarMenu
-const { getUser } = loginStore();
 const Usuario =  getUser();
+
 async function logOut() {
   await cerrarSesion();
   // Redirige al usuario a la página de inicio de sesión después de cerrar sesión
@@ -34,19 +48,33 @@ const rfq = ref(null);
 const pedidos = ref(null);
 const Reportes = ref(null);
 
-onMounted(() => {
-//aun no jala
-switch (interfaz) {
-  case "menu":
-    inicio.value.style.borderColor = "white";
-    inicio.value.style.borderBottom = "#FFCA0A";
-    inicio.value.style.borderStyle= "solid";
-    break;
-  case "roles":
-    roles.value.style.borderColor = "white";
-    roles.value.style.borderBottom = "#FFCA0A";
-    roles.value.style.borderStyle= "solid";
-    break;
+onBeforeMount(() =>{
+  
+})
+
+onMounted(() => {    
+  const permisos = getPermisos()
+  console.log(permisos)     
+  permisos.includes("Consultar Roles") ? visibleRoles.value = true : visibleRoles.value = false;
+  permisos.includes("Consultar Usuarios") ? visibleUsuarios.value = true : visibleUsuarios.value = false;
+  permisos.includes("Consultar Clientes") ? visibleClientes.value = true : visibleClientes.value = false;
+  permisos.includes("Consultar Catalogo") ? visibleCatalogo.value = true : visibleCatalogo.value = false;
+  permisos.includes("Consultar RFQ") ? visibleRFQ.value = true : visibleRFQ.value = false;
+  permisos.includes("Consultar Pedidos") ? visiblePedidos.value = true : visiblePedidos.value = false;
+  permisos.includes("Generar Reportes") ? visibleReportes.value = true : visibleReportes.value = false;        
+  
+  //aun no jala - YA JALA LO HIZO MI NOVIO BONITO 12/10
+  switch (interfaz) {
+    case "menu":
+      inicio.value.style.borderColor = "white";
+      inicio.value.style.borderBottom = "#FFCA0A";
+      inicio.value.style.borderStyle= "solid";
+      break;
+    case "roles":
+      roles.value.style.borderColor = "white";
+      roles.value.style.borderBottom = "#FFCA0A";
+      roles.value.style.borderStyle= "solid";
+      break;
 }})
 
 // Esta funcion amos a usarla para brincar entre interfaces
@@ -79,13 +107,13 @@ router.push({name:nombreDeInterfazAdondeVamos})
         </div>
       <div class="second-level">
         <button ref="inicio" class="btn" @click="jumpTo('home')">Inicio</button>
-        <button ref="roles" class="btn" @click="jumpTo('roles')">Roles</button>
-        <button ref="usuarios" class="btn" @click="jumpTo()">Usuarios</button>
-        <button ref="clientes" class="btn" @click="jumpTo()">Clientes</button>
-        <button ref="catalogo" class="btn" @click="jumpTo()">Catalogo</button>
-        <button ref=" rfq" class="btn" @click="jumpTo()">RFQ</button>
-        <button ref="pedidos" class="btn" @click="jumpTo()">Pedidos</button>
-        <button ref="Reportes" class="btn" @click="jumpTo()">Reportes</button>
+        <button v-show="visibleRoles" ref="roles" class="btn" @click="jumpTo('roles')">Roles</button>
+        <button ref="usuarios" class="btn" @click="jumpTo()" v-if="visibleUsuarios">Usuarios</button>
+        <button ref="clientes" class="btn" @click="jumpTo()" v-if="visibleClientes">Clientes</button>
+        <button ref="catalogo" class="btn" @click="jumpTo()" v-if="visibleCatalogo">Catalogo</button>
+        <button ref=" rfq" class="btn" @click="jumpTo()" v-if="visibleRFQ">RFQ</button>
+        <button ref="pedidos" class="btn" @click="jumpTo()" v-if="visiblePedidos">Pedidos</button>
+        <button ref="Reportes" class="btn" @click="jumpTo()" v-if="visibleReportes">Reportes</button>
       </div>
     </div>
 

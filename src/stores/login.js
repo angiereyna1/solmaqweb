@@ -4,7 +4,8 @@ import axios from "axios";
 export const loginStore = defineStore("login",{
   state: ()=>({
     token: null,
-    usuario:null
+    usuario:null,
+    arrayPermisos:null
   }), 
   actions:{
     async login(usuario){
@@ -18,8 +19,9 @@ export const loginStore = defineStore("login",{
             this.usuario = usuario.Usuario;
             sessionStorage.setItem("usuario", this.usuario);
             console.log(this.usuario)
-            return res.data.body.token != null;
-            
+            this.arrayPermisos = res.data.body.permisos
+            sessionStorage.setItem("permisos", this.arrayPermisos);
+            return res.data.body.token != null;            
         } catch (error) {
             console.log(error)
         }
@@ -54,6 +56,11 @@ export const loginStore = defineStore("login",{
       console.log(this.usuario)
         return this.usuario;
     },    
+
+    getPermisos(){
+        console.log(this.arrayPermisos[0])
+        return this.arrayPermisos;
+    },
 
     async reanudarSesion(){
       // Get saved data from sessionStorage
