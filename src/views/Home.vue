@@ -82,6 +82,7 @@ import cabecera from "../components/Menu.vue";
 
 <style>
 body {
-    background-color: lightgray; /* Establece el fondo del body en lightgray */
+    background-color: #f4f4f4;; /* Establece el fondo del body en lightgray */
+    font-family: 'Barlow', sans-serif; /* Establece el tipo de letra como Barlow */
 }
 </style>

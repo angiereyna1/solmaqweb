@@ -2,7 +2,8 @@
 /////////////////////////////////// TO DO ////////////////////////////////////
 // Optimizar codigo
 // agregar el del carrito 
-import { ref,onMounted, onBeforeMount } from "vue";
+// comprobar que al borrar un permiso propio se actuliza la navbar
+import { ref, onMounted, onBeforeMount } from "vue";
 import { loginStore } from "../stores/login";
 import router from "../router/index";
 
@@ -21,9 +22,7 @@ const visibleRFQ = ref("");
 const visiblePedidos = ref("");
 const visibleReportes = ref("");
 
-
-const mostrarMenu = ref(false); // Agrega esta línea para definir mostrarMenu
-const Usuario =  getUser();
+const Usuario = getUser();
 
 async function logOut() {
   await cerrarSesion();
@@ -48,39 +47,45 @@ const rfq = ref(null);
 const pedidos = ref(null);
 const Reportes = ref(null);
 
-onBeforeMount(() =>{
-  
+onBeforeMount(() => {
+
 })
 
-onMounted(() => {    
+onMounted(() => {
   const permisos = getPermisos()
-  console.log(permisos)     
+  console.log(permisos)
   permisos.includes("Consultar Roles") ? visibleRoles.value = true : visibleRoles.value = false;
   permisos.includes("Consultar Usuarios") ? visibleUsuarios.value = true : visibleUsuarios.value = false;
   permisos.includes("Consultar Clientes") ? visibleClientes.value = true : visibleClientes.value = false;
   permisos.includes("Consultar Catalogo") ? visibleCatalogo.value = true : visibleCatalogo.value = false;
   permisos.includes("Consultar RFQ") ? visibleRFQ.value = true : visibleRFQ.value = false;
   permisos.includes("Consultar Pedidos") ? visiblePedidos.value = true : visiblePedidos.value = false;
-  permisos.includes("Generar Reportes") ? visibleReportes.value = true : visibleReportes.value = false;        
-  
+  permisos.includes("Generar Reportes") ? visibleReportes.value = true : visibleReportes.value = false;
+
   //aun no jala - YA JALA LO HIZO MI NOVIO BONITO 12/10
   switch (interfaz) {
     case "menu":
       inicio.value.style.borderColor = "white";
       inicio.value.style.borderBottom = "#FFCA0A";
-      inicio.value.style.borderStyle= "solid";
+      inicio.value.style.borderStyle = "solid";
       break;
     case "roles":
       roles.value.style.borderColor = "white";
       roles.value.style.borderBottom = "#FFCA0A";
-      roles.value.style.borderStyle= "solid";
+      roles.value.style.borderStyle = "solid";
       break;
-}})
+    case "usuarios":
+    usuarios.value.style.borderColor = "white";
+    usuarios.value.style.borderBottom = "#FFCA0A";
+    usuarios.value.style.borderStyle = "solid";
+      break;
+  }
+})
 
 // Esta funcion amos a usarla para brincar entre interfaces
-function jumpTo(nombreDeInterfazAdondeVamos){
+function jumpTo(nombreDeInterfazAdondeVamos) {
   //el router esta comentado pq no esta importado arriba pq esta comentado jajatl
-router.push({name:nombreDeInterfazAdondeVamos})
+  router.push({ name: nombreDeInterfazAdondeVamos })
 }
 ///:style es para poner stylos basados en variables reactivas
 //:style="{ backgroundColor: color }"
@@ -91,24 +96,35 @@ router.push({name:nombreDeInterfazAdondeVamos})
     <div class="side"></div>
 
     <div style="display: inline; margin: auto;">
-        <div class="navbar">
-            <!-- En este div va el logo -->
-            <div style="justify-content: left;display: flex;width: 50%;"><img class="img-logo" src="../assets/LogoSOLMAQ.png"/></div>
-            <div style="justify-content: right; display: flex; width: 50%;">
-                <button class="profile-btn" @click="mostrarMenu = !mostrarMenu">
-                  <i class="fas fa-user"></i> {{Usuario}}
-                </button>
-                <div v-if="mostrarMenu" class="menu-desplegable">
-                    <button class="btn-menu" @click="logOut">
+      <div class="navbar">
+        <!-- En este div va el logo -->
+        <div style="justify-content: left;display: flex;width: 50%;"><img class="img-logo"
+            src="../assets/LogoSOLMAQ.png" /></div>
+        <div style="justify-content: right; display: flex; width: 50%;">
+          <div class="user-dropdown d-flex align-items-center">
+            <div class="btn-group dropdown-center">
+              <button type="button" class="btn btn-custom d-flex align-items-center">
+                <i class="fas fa-user me-2"></i>{{ Usuario }}
+              </button>
+              <button type="button" class="btn btn-custom dropdown-toggle dropdown-toggle-split w-auto"
+                data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="visually-hidden">Toggle Dropdown</span>
+              </button>
+              <ul class="dropdown-menu">
+                <li>
+                  <button class="btn-menu" @click="logOut">
                       <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
                     </button>
-                </div>
+                </li>
+              </ul>
             </div>
+          </div>
         </div>
+      </div>
       <div class="second-level">
         <button ref="inicio" class="btn" @click="jumpTo('home')">Inicio</button>
         <button v-show="visibleRoles" ref="roles" class="btn" @click="jumpTo('roles')">Roles</button>
-        <button ref="usuarios" class="btn" @click="jumpTo()" v-if="visibleUsuarios">Usuarios</button>
+        <button v-show="visibleUsuarios" ref="usuarios" class="btn" @click="jumpTo('usuarios')">Usuarios</button>
         <button ref="clientes" class="btn" @click="jumpTo()" v-if="visibleClientes">Clientes</button>
         <button ref="catalogo" class="btn" @click="jumpTo()" v-if="visibleCatalogo">Catalogo</button>
         <button ref=" rfq" class="btn" @click="jumpTo()" v-if="visibleRFQ">RFQ</button>
@@ -130,12 +146,14 @@ router.push({name:nombreDeInterfazAdondeVamos})
   color: white;
   background-color: white;
   border-bottom: 2px solid black;
-  margin: auto; /* Centra el div horizontalmente */
-  justify-content: space-between; /* Ajusta el espacio entre los elementos internos */
+  margin: auto;
+  /* Centra el div horizontalmente */
+  justify-content: space-between;
+  /* Ajusta el espacio entre los elementos internos */
 }
 
 .second-level {
-  display: flex;    
+  display: flex;
   margin-left: 2%;
 }
 
@@ -146,7 +164,7 @@ router.push({name:nombreDeInterfazAdondeVamos})
 
 .side {
   width: 10vw;
-  background-color: white;  
+  background-color: white;
 }
 
 .brand {
@@ -162,11 +180,13 @@ router.push({name:nombreDeInterfazAdondeVamos})
   font-size: xx-large;
   padding-left: 50px;
 }
+
 .subtitle {
   text-align: left;
   padding-left: 10px;
   min-width: 160px;
 }
+
 .module {
   width: 50vw;
   text-align: right;
@@ -178,7 +198,7 @@ router.push({name:nombreDeInterfazAdondeVamos})
   width: 120px;
   height: 45px;
   border-radius: 30px;
-  border: 1px solid black;  
+  border: 1px solid black;
 }
 
 .btn-menu {
@@ -186,9 +206,8 @@ router.push({name:nombreDeInterfazAdondeVamos})
   height: 35px;
   border: none;
   background-color: white;
-  font-family: 'Barlow', sans-serif; /* Cambia la fuente a Barlow */
-  font-size: 14px; /* Cambia el tamaño de la letra */
-  /* Resto de tus estilos */
+  font-family: 'Barlow', sans-serif;  
+  font-size: 14px;
 }
 
 .btn {
@@ -197,27 +216,9 @@ router.push({name:nombreDeInterfazAdondeVamos})
   border: none;
   background-color: white;
 }
-.btn :hover {
-  width: 100px;
-  height: 35px;
-  border: none;
-  background-color: black;
-}
 
-.img-logo{
-    width: 90px;        
-}
-
-.menu-desplegable {
-  display: block;
-  position: absolute;
-  top: 100%; /* Posición debajo del botón */
-  background-color: white;
-  border: 1px solid #ccc;
-  width: 150px; /* Ajusta el ancho según tus necesidades */
-  padding-top: 5px;
-  padding-bottom: 5px;
-  z-index: 1000; /* Asegúrate de que esté por encima de otros elementos */  
+.img-logo {
+  width: 90px;
 }
 
 .btn:hover {
@@ -226,4 +227,25 @@ router.push({name:nombreDeInterfazAdondeVamos})
   border: none;
   background-color: #FFCA0A;
 }
+
+.dropdown-menu {  
+  left: 50% !important;
+  transform: translateX(-50%) !important;  
+  margin-top: 0 !important; /* Eliminar margen superior */
+}
+
+.btn-custom {
+  height: 40px;
+  background-color: lightgray;  
+  border-radius: 30px;
+  color: black;  
+}
+
+.btn-custom:hover {
+  background-color: lightgray;  
+  border-color: black;  
+  color: black;  
+  height: 40px;
+}
+
 </style>
