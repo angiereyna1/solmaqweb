@@ -1,40 +1,41 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
-import { permisosRolesStore } from "../stores/permisosRoles";
+import router from "../router";
+import { permisosRolesStore } from '../stores/permisosRoles';
 import { rolesStore } from "../stores/roles";
+import { usuariosStore } from "../stores/usuarios";
 import { loginStore } from "../stores/login";
+
 import cabecera from "../components/Menu.vue";
 
-const { getPermisos } = loginStore();
+const { obtenerPermisos } = permisosRolesStore();
+const { getUser } = loginStore();
+const { obtenerRoles, agregarRol, actualizarRol, cambiarEstatus, setRol, eliminarRol } = rolesStore();
+const { obtenerUsuarios, obtenerIdPorUser } = usuariosStore();
 
-const { obtenerRoles } = rolesStore();
-const { reanudarSesion } = loginStore();
-const { verificarPermisos } = loginStore();
-const { obtenerPermisosDelRol } = permisosRolesStore();
-const { eliminarPermisosDelRol } = permisosRolesStore();
-const { eliminarRol } = rolesStore();
-const { agregarRol } = rolesStore();
-const { actualizarRol } = rolesStore();
-const { setRol } = rolesStore();
-
-const rolDir = ref({});
+const visibleGestionar = ref("");
+const rolesIds = ref({});
 const buscador = ref({});
 const roles = ref([]);
 const rolesArray = ref([]);
 const rolesDesplegados = ref([]);
-const permisosDeRolArray = ref([]);
-const idRolEliminar = ref();
+const idRolCambiarEstatus = ref();
+const estadoCambiarEstatus = ref(null);
 const nuevoRol = ref(""); // Variable para almacenar el nuevo rol
 const campoVacio = ref(false);
 const rolExistente = ref(false);
 
-const visibleGestionar = ref("");
+const usuariosIds = ref({});
+const usuarios = ref([]);
+const usuariosArray = ref([]);
+const usuariosDesplegados = ref([]);
 
-var modal;
-var modalConfirmacion;
-var modalAgregarRol;
-var nombre;
-var modalEditarRol;
+const Usuario = getUser();
+
+let modalConfirmacion;
+let modalAgregarRol;
+let nombre;
+let modalEditarRol;
 
 const rolSeleccionado = ref({
     id: null,
@@ -43,11 +44,9 @@ const rolSeleccionado = ref({
 });
 
 
-
-
 onMounted(async () => {
     await filtrarRoles(1); // Cargar roles activos por defecto al entrar en la página
-    consultarRoles();
+    consultarRoles();    
 
     modalAgregarRol = new bootstrap.Modal(document.getElementById("modalAgregarRol"), {
         keyboard: false,
@@ -71,15 +70,14 @@ onMounted(async () => {
         campoVacio.value = false; // Resetear la variable de campoVacio
     });
 
-    modal = new bootstrap.Modal(document.getElementById("modal"), {
+    modalConfirmacion = new bootstrap.Modal(document.getElementById("modalConfirmacion"), {
         keyboard: false,
     });
 
-    modalConfirmacion = new bootstrap.Modal(document.getElementById("modalCon"), {
-        keyboard: false,
-    });
-
-    const permisos = getPermisos()
+    const idRol = await obtenerIdPorUser(Usuario); 
+    console.log(Usuario);
+    console.log(idRol);
+    const permisos = await obtenerPermisos(idRol);    
     console.log(permisos)
     permisos.includes("Gestionar Roles") ? visibleGestionar.value = true : visibleGestionar.value = false;
 
@@ -88,16 +86,17 @@ onMounted(async () => {
 const consultarRoles = async (activo) => {
     buscador.value = [];
     rolesArray.value = [];
-    rolDir.value = [];
+    rolesIds.value = [];
     try {
         roles.value = await obtenerRoles(activo);
         const body = roles.value.data.body;
+        console.log(roles.value);
         for (var j in body) {
             if (body[j].Activo == activo) {
                 rolesArray.value.push(body[j]);
             }
             buscador.value.push(body[j].Rol);
-            rolDir.value.push(body[j].idRol);
+            rolesIds.value.push(body[j].idRol);
         }
         rolesDesplegados.value = rolesArray.value;
     } catch (error) {
@@ -113,34 +112,11 @@ function resetCampoVacio() {
     campoVacio.value = false; // Restablecer campoVacio a false cuando el usuario comienza a escribir
 }
 
-const consultarPermisosDeRol = async (idRol) => {
-    permisosDeRolArray.value = [];
-    try {
-        const permisosDeRol = await obtenerPermisosDelRol(idRol);
-        const body = permisosDeRol.data.body;
-        for (var j in body) {
-            permisosDeRolArray.value.push(body[j]);
-        }
-        modal.show();
-    } catch (error) {
-        console.log(error);
-    }
-};
-
-const eliminarRoles = async (idUsuario) => {
-    try {
-        await eliminarPermisosDelRol(idUsuario);
-        await eliminarRol(idUsuario);
-        await consultarRoles();
-    } catch (error) {
-        console.log(error);
-    }
-};
-
 function abrirModalEditar(rol) {
     // Asigna los valores del rol seleccionado a rolSeleccionado
     rolSeleccionado.value.id = rol.idRol; // Asegúrate de que los nombres de las propiedades coincidan
     rolSeleccionado.value.nombre = rol.Rol; // Asegúrate de que los nombres de las propiedades coincidan
+    rolSeleccionado.value.Activo = rol.Activo
     // Asigna otros campos del rol a rolSeleccionado según sea necesario
 
     // Abre el modal de edición
@@ -175,27 +151,74 @@ async function guardarEdicion() {
         console.log("Rol modificado exitosamente.");
         rolExistente.value = false;
         campoVacio.value = false; // Resetear el campo vacío        
+
+        // Dependiendo del estado del rol editado, actualiza la lista de roles
+        if (rolSeleccionado.value.Activo === 1) {
+            await filtrarRoles(1); // Si es un rol activo, actualiza la lista de roles activos
+        } else {
+            await filtrarRoles(0); // Si es un rol inactivo, actualiza la lista de roles inactivos
+        }
     }
-    await filtrarRoles(1);
 }
 
-// const modificarRol = async (idRol) => {
-//     try {
-//         setRol(idRol);
-//         // router.push({ name: 'actualizarRol', params: { idRolAct: idRol }});
-
-//         //window.location.href = "http://localhost:5173/registroRol";
-//         //this.$router.push("http://localhost:5173/crearRol");
-//     } catch (error) {
-//         console.log(error);
-//     }
-// };
-
-
-function confirmar(idRol) {
-    idRolEliminar.value = idRol;
+const confirmar = (idRol, estado) => {
+    // Guarda el idRol y el estado en las referencias adecuadas
+    idRolCambiarEstatus.value = idRol;
+    estadoCambiarEstatus.value = estado;
+    // Muestra el modal de confirmación
     modalConfirmacion.show();
+};
+
+const consultarUsuarios = async (idRol) => {
+    usuariosArray.value = [];
+    usuariosIds.value = [];
+    try {
+        usuarios.value = await obtenerUsuarios(idRol);
+        const body = usuarios.value.data.body;
+        console.log(usuarios.value);
+        for (var j in body) {
+            if (body[j].idRol == idRol) {
+                usuariosArray.value.push(body[j]);
+            }
+            usuariosIds.value.push(body[j].idUsuario)
+        }
+        usuariosDesplegados.value = usuariosArray.value;
+        console.log(usuariosDesplegados.value)
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+// Función para verificar si hay un usuario con un idRol específico
+const existeUsuarioConRol = async (idRol) => {
+    await consultarUsuarios(idRol);
+    const usuariosObtenidos = usuariosArray.value;
+    return usuariosObtenidos.length > 0;
+};
+
+// Función principal para cambiar el estado de roles
+async function cambiarEstatusRoles(idRol, estado) {
+    try {
+        if(estado === 0){
+            if(await existeUsuarioConRol(idRol)){
+                // Cambiar el estado sin eliminar el rol
+                await cambiarEstatus(idRol, estado);    
+            }else{
+                console.log('No hay usuarios usando el rol con idRol en estado 1.');
+                await eliminarRol(idRol);
+            }
+        }else{
+            await cambiarEstatus(idRol, estado);
+        }
+        // Filtrar roles independientemente del estado
+        await filtrarRoles(!estado);
+
+    } catch (error) {
+        console.error(error);
+    }
 }
+
+
 
 function actualizarTabla(nombre) {
     if (nombre.trim() === "") {
@@ -245,11 +268,19 @@ async function agregarNuevoRol() {
     await filtrarRoles(1);
 }
 
-
-
 function abrirModalAgregarRol() {
     modalAgregarRol.show();
 }
+
+const modificarPermisos = async (idRol) => {
+  try {
+    setRol(idRol);
+    router.push({ name: 'permisos', params: { idRol: idRol }});
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 </script>
 
 <template>
@@ -258,8 +289,7 @@ function abrirModalAgregarRol() {
     <!-- Contenido -->
     <div class="contenido">
         <!-- Primera parte del contenido: Barra de búsqueda -->
-        <div class="navbar">
-            <!-- En este div va el logo -->
+        <div class="navbar">            
             <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 8px;">
                 <div class="container-fluid custom-container">
                     <div class="input-group mb-3">
@@ -280,7 +310,6 @@ function abrirModalAgregarRol() {
                     </button>
                 </div>
             </div>
-
         </div>
         <!-- Segunda parte del contenido: Tabla de consulta -->
         <div>
@@ -292,95 +321,68 @@ function abrirModalAgregarRol() {
                     <button @click="filtrarRoles(0)"
                         :class="{ 'btn btn-rojo': botonesClases.inactivos, 'btn btn-gris': !botonesClases.inactivos }">Inactivos</button>
                 </div>
-
             </div>
         </div>
-        <div class="centered-div" >
-            <div class="header">
-                <table class="table text-center mt-4 mx-auto"
-                    style="width: 920px; border: 1px solid gray; border-radius: 10px; margin-top: 0px!important;">
-                    <thead>
-                        <tr>
-                            <th scope="col"
-                                style="background-color: #f4f4f4; border-bottom: 1px solid gray; border-top: 1px solid gray;">
-                                Rol</th>
-                            <th scope="col"
-                                style="width: 17vw; background-color: #f4f4f4; border-bottom: 1px solid gray; border-top: 1px solid gray;">
-                            </th>
-                        </tr>
-                    </thead>
-                </table>
-            </div>
-            <div class="body" style="max-height: 210px; overflow-y: auto; width: 925px;">
-                <table class="table text-center mt-4 mx-auto"
-                    style="width: 900px; border: 1px solid gray; border-radius: 10px; margin-bottom: 0px!important; margin-top: 0px!important;">
-                    <tbody>
-                        <tr v-for="rol in rolesDesplegados">
-                            <td style="background-color: #f4f4f4;">
-                                {{ rol.Rol }}
-                            </td>
-                            <th scope="row" style="background-color: #f4f4f4; width: 15vw;">
-                                <div class="align-items-center" v-show="visibleGestionar">
-                                    <button class="btn btn-primary mx-1 btn-create" type="submit"
-                                        style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
-                                        @click="consultarPermisosDeRol(rol.idRol)">
-                                        <i class="fas fa-shield-alt text-gray"></i>
-                                    </button>
-                                    <button class="btn btn-primary mx-1 btn-spacer" type="submit"
-                                        style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
-                                        @click="abrirModalEditar(rol)">
-                                        <i class="fa-solid fa-pen-to-square text-gray"></i>
-                                    </button>
-                                    <button class="btn btn-primary mx-1 btn-delete" type="submit"
-                                        style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
-                                        @click="confirmar(rol.idRol)">
-                                        <i class="fas fa-times text-gray"></i>
-                                    </button>
-                                </div>
-                            </th>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <!-- tabla de roles -->
+        <div class="table-wrapper-scroll-y my-custom-scrollbar mx-auto"
+            style="width: 80%; border: 1px solid gray; background-color:#f4f4f4;">
+            <table class="table table-bordered mb-0 table-light">
+                <thead class="thead-light" style="position: sticky; top: 0;">
+                    <tr class="table-gray-border" st>
+                        <th scope="col">Rol</th>
+                        <th scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="rol in rolesDesplegados">
+                        <td> {{ rol.Rol }}</td>
+                        <th scope="row" style="width: 15vw;">
+                            <div class="align-items-center" v-show="visibleGestionar">
+                                <button class="btn btn-primary mx-1 btn-create" type="submit"
+                                    style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
+                                    @click="modificarPermisos(rol.idRol)">
+                                    <i class="fas fa-shield-alt text-gray"></i>
+                                </button>                                
+                                <button class="btn btn-primary mx-1 btn-spacer" type="submit"
+                                    style="background-color: hsl(0, 0%, 96%); border-color: #f4f4f4; height: 37px;"
+                                    @click="abrirModalEditar(rol)">
+                                    <i class="fa-solid fa-pen-to-square text-gray"></i>
+                                </button>
+                                <button v-if="rol.Activo === 1 && visibleGestionar" class="btn btn-primary mx-1 btn-delete"
+                                    type="submit" style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
+                                    @click="confirmar(rol.idRol, 0)">
+                                    <i class="fas fa-times text-gray"></i>
+                                </button>
+                                <button v-else-if="rol.Activo === 0 && visibleGestionar"
+                                    class="btn btn-primary mx-1 btn-restore" type="submit"
+                                    style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
+                                    @click="confirmar(rol.idRol, 1)">
+                                    <i class="fas fa-check text-gray"></i>
+                                </button>
 
+                            </div>
+                        </th>
 
+                    </tr>
+                </tbody>
+            </table>
         </div>
 
-        <!-- Modal  modalCon-->
-        <div class="modal fade" id="modal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <!-- Acivar e inactivar -->
+        <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Permisos del Rol</h5>
+                        <h5 class="modal-title" id="exampleModalLabel">Estatus del Rol</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <div v-for="item in permisosDeRolArray">
-                            <span>{{ item.Descripcion }}</span>
-                        </div>
+                        <span v-if="estadoCambiarEstatus === 0">¿Está seguro de que quiere eliminar este rol?</span>
+                        <span v-else>¿Está seguro de que quiere activar este rol?</span>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
-                            Cerrar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="modal fade" id="modalCon" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="exampleModalLabel">Permisos del Rol</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <span>¿Está seguro de que quiere eliminar este permiso?</span>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                            @click="eliminarRoles(idRolEliminar)">
+                        <button type="button" class="btn btn-amarillo" data-bs-dismiss="modal"
+                            @click="cambiarEstatusRoles(idRolCambiarEstatus, estadoCambiarEstatus)">
                             Confirmar
                         </button>
                     </div>
@@ -463,19 +465,11 @@ function abrirModalAgregarRol() {
 </template>
 
 <style scoped>
-.centered-div {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -2%);
-    display: flex;
-    flex-direction: column;
-}
-
 .table-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    margin-bottom: 2%;
 }
 
 .titulo {
@@ -486,8 +480,6 @@ function abrirModalAgregarRol() {
     /* Espacio entre el título y los botones */
     margin-left: 30px;
     /* Espacio entre el título y los botones */
-    margin-bottom: 0px!important;
-    margin-top: 2px!important;
 }
 
 .botones button {
@@ -588,7 +580,6 @@ function abrirModalAgregarRol() {
     border: none;
 }
 
-.btn:focus,
 .btn-verde:focus,
 .btn-rojo:focus,
 .btn-amarillo:focus,
@@ -598,24 +589,13 @@ function abrirModalAgregarRol() {
     /* Elimina el contorno y la sombra al hacer clic */
 }
 
-.header {
-    background-color: #f4f4f4;
-    widows: 923px;
-    margin-left: 2px;
+.my-custom-scrollbar {
+    position: relative;
+    height: 205px;
+    overflow: auto;
 }
 
-.header table {
-    width: 100%;
-    margin: 0%;
-}
-
-.body {
-    flex: 1;
-    overflow-y: auto;
-}
-
-.body table {
-    width: 100%;
+.table-wrapper-scroll-y {
+    display: block;
 }
 </style>
-
