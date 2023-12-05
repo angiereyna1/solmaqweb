@@ -1,6 +1,5 @@
 <script setup>
 import cabecera from "../components/Menu.vue";
-
 </script>
 
 <template>

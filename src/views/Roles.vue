@@ -29,6 +29,8 @@ const usuariosIds = ref({});
 const usuarios = ref([]);
 const usuariosArray = ref([]);
 const usuariosDesplegados = ref([]);
+const rolOriginal = ref("");
+
 
 const Usuario = getUser();
 
@@ -40,47 +42,53 @@ let modalEditarRol;
 const rolSeleccionado = ref({
     id: null,
     nombre: ''
-    // Otros campos del rol que deseas editar
 });
 
 
 onMounted(async () => {
-    await filtrarRoles(1); // Cargar roles activos por defecto al entrar en la página
-    consultarRoles();    
+    try {
+        filtrarRoles(1); // Cargar roles activos por defecto al entrar en la página
+        consultarRoles();
 
-    modalAgregarRol = new bootstrap.Modal(document.getElementById("modalAgregarRol"), {
-        keyboard: false,
-    });
+        modalAgregarRol = new bootstrap.Modal(document.getElementById("modalAgregarRol"), {
+            backdrop: "static", // Evita que el modal se cierre al hacer clic fuera del modal
+            keyboard: false,
+        });
 
-    // Agrega el event listener para el evento hidden.bs.modal
-    modalAgregarRol._element.addEventListener('hidden.bs.modal', () => {
-        nuevoRol.value = ''; // Limpiar el campo del nuevo rol cuando el modal se cierra
-        rolExistente.value = false; // Resetear la variable de rolExistente
-        campoVacio.value = false; // Resetear la variable de campoVacio
-    });
+        // Agrega el event listener para el evento hidden.bs.modal
+        modalAgregarRol._element.addEventListener('hidden.bs.modal', () => {
+            nuevoRol.value = ''; // Limpiar el campo del nuevo rol cuando el modal se cierra
+            rolExistente.value = false; // Resetear la variable de rolExistente
+            campoVacio.value = false; // Resetear la variable de campoVacio
+        });
 
-    modalEditarRol = new bootstrap.Modal(document.getElementById("modalEditarRol"), {
-        keyboard: false,
-    });
+        modalEditarRol = new bootstrap.Modal(document.getElementById("modalEditarRol"), {
+            backdrop: "static", // Evita que el modal se cierre al hacer clic fuera del modal
+            keyboard: false,
+        });
 
-    // Agrega el event listener para el evento hidden.bs.modal
-    modalEditarRol._element.addEventListener('hidden.bs.modal', () => {
-        nuevoRol.value = ''; // Limpiar el campo del nuevo rol cuando el modal se cierra
-        rolExistente.value = false; // Resetear la variable de rolExistente
-        campoVacio.value = false; // Resetear la variable de campoVacio
-    });
+        // Agrega el event listener para el evento hidden.bs.modal
+        modalEditarRol._element.addEventListener('hidden.bs.modal', () => {
+            nuevoRol.value = ''; // Limpiar el campo del nuevo rol cuando el modal se cierra
+            rolExistente.value = false; // Resetear la variable de rolExistente
+            campoVacio.value = false; // Resetear la variable de campoVacio
+        });
 
-    modalConfirmacion = new bootstrap.Modal(document.getElementById("modalConfirmacion"), {
-        keyboard: false,
-    });
+        modalConfirmacion = new bootstrap.Modal(document.getElementById("modalConfirmacion"), {
+            backdrop: "static", // Evita que el modal se cierre al hacer clic fuera del modal
+            keyboard: false,
+        });
 
-    const idRol = await obtenerIdPorUser(Usuario); 
-    console.log(Usuario);
-    console.log(idRol);
-    const permisos = await obtenerPermisos(idRol);    
-    console.log(permisos)
-    permisos.includes("Gestionar Roles") ? visibleGestionar.value = true : visibleGestionar.value = false;
+        const idRol = await obtenerIdPorUser(Usuario);
+        console.log(Usuario);
+        console.log(idRol);
+        const permisos = await obtenerPermisos(idRol);
+        console.log(permisos)
+        permisos.includes("Gestionar Roles") ? visibleGestionar.value = true : visibleGestionar.value = false;
 
+    } catch (error) {
+        console.log(error);
+    }
 });
 
 const consultarRoles = async (activo) => {
@@ -113,6 +121,9 @@ function resetCampoVacio() {
 }
 
 function abrirModalEditar(rol) {
+    // Guarda el nombre original del rol seleccionado
+    rolOriginal.value = rol.Rol;
+
     // Asigna los valores del rol seleccionado a rolSeleccionado
     rolSeleccionado.value.id = rol.idRol; // Asegúrate de que los nombres de las propiedades coincidan
     rolSeleccionado.value.nombre = rol.Rol; // Asegúrate de que los nombres de las propiedades coincidan
@@ -123,13 +134,14 @@ function abrirModalEditar(rol) {
     modalEditarRol.show();
 }
 
-
 async function guardarEdicion() {
     // Verificar si el campo del nuevo rol está vacío
     if (!rolSeleccionado.value.nombre) {
         campoVacio.value = true;
         return; // Salir de la función si el campo está vacío
     }
+
+    const nombreRolSeleccionadoUpperCase = rolSeleccionado.value.nombre.toUpperCase();
 
     // Consulta los roles activos
     await consultarRoles(1);
@@ -140,15 +152,25 @@ async function guardarEdicion() {
     const rolesInactivos = rolesArray.value;
 
     // Verifica si el rol ya existe
-    const existeRol = rolesActivos.some(rol => rol.Rol === rolSeleccionado.value.nombre) || rolesInactivos.some(rol => rol.Rol === rolSeleccionado.value.nombre);
+    const existeRol = rolesActivos.some(rol => rol.Rol.toUpperCase() === nombreRolSeleccionadoUpperCase) ||
+        rolesInactivos.some(rol => rol.Rol.toUpperCase() === nombreRolSeleccionadoUpperCase);
 
-    if (existeRol) {
+    // Verifica si el nombre del rol ha cambiado
+    const nombreCambiado = rolSeleccionado.value.nombre.toUpperCase() !== rolOriginal.value.toUpperCase();;
+
+    if (existeRol && nombreCambiado) {
         rolExistente.value = true;
+        await filtrarRoles(1);
         console.log("El rol ya existe. Por favor, elige otro nombre.");
     } else {
-        actualizarRol(rolSeleccionado.value.id, rolSeleccionado.value.nombre)
+        // Realiza la actualización solo si el nombre ha cambiado
+        if (nombreCambiado) {
+            actualizarRol(rolSeleccionado.value.id, rolSeleccionado.value.nombre);
+        }
+
         modalEditarRol.hide();
         console.log("Rol modificado exitosamente.");
+        alert("Rol modificado exitosamente.")
         rolExistente.value = false;
         campoVacio.value = false; // Resetear el campo vacío        
 
@@ -160,6 +182,7 @@ async function guardarEdicion() {
         }
     }
 }
+
 
 const confirmar = (idRol, estado) => {
     // Guarda el idRol y el estado en las referencias adecuadas
@@ -199,15 +222,17 @@ const existeUsuarioConRol = async (idRol) => {
 // Función principal para cambiar el estado de roles
 async function cambiarEstatusRoles(idRol, estado) {
     try {
-        if(estado === 0){
-            if(await existeUsuarioConRol(idRol)){
+        if (estado === 0) {
+            if (await existeUsuarioConRol(idRol)) {
                 // Cambiar el estado sin eliminar el rol
-                await cambiarEstatus(idRol, estado);    
-            }else{
+                await cambiarEstatus(idRol, estado);
+                alert("Rol modificado a inactivos exitosamente.")
+            } else {
                 console.log('No hay usuarios usando el rol con idRol en estado 1.');
                 await eliminarRol(idRol);
+                alert("Rol eliminado permanentemente.")
             }
-        }else{
+        } else {
             await cambiarEstatus(idRol, estado);
         }
         // Filtrar roles independientemente del estado
@@ -244,6 +269,8 @@ async function agregarNuevoRol() {
         return; // Salir de la función si el campo está vacío
     }
 
+    const nuevoRolUpperCase = nuevoRol.value.toUpperCase();
+
     // Consulta los roles activos
     await consultarRoles(1);
     const rolesActivos = rolesArray.value;
@@ -253,7 +280,9 @@ async function agregarNuevoRol() {
     const rolesInactivos = rolesArray.value;
 
     // Verifica si el rol ya existe
-    const existeRol = rolesActivos.some(rol => rol.Rol === nuevoRol.value) || rolesInactivos.some(rol => rol.Rol === nuevoRol.value);
+    // Verifica si el rol ya existe (ignorando mayúsculas/minúsculas)
+    const existeRol = rolesActivos.some(rol => rol.Rol.toUpperCase() === nuevoRolUpperCase) ||
+        rolesInactivos.some(rol => rol.Rol.toUpperCase() === nuevoRolUpperCase);
 
     if (existeRol) {
         rolExistente.value = true;
@@ -261,6 +290,7 @@ async function agregarNuevoRol() {
     } else {
         agregarRol(nuevoRol.value);
         modalAgregarRol.hide();
+        alert("Rol agregado exitosamente");
         console.log("Rol agregado exitosamente.");
         rolExistente.value = false;
         campoVacio.value = false; // Resetear el campo vacío        
@@ -273,14 +303,21 @@ function abrirModalAgregarRol() {
 }
 
 const modificarPermisos = async (idRol) => {
-  try {
-    setRol(idRol);
-    router.push({ name: 'permisos', params: { idRol: idRol }});
-  } catch (error) {
-    console.log(error);
-  }
+    try {
+        setRol(idRol);
+        router.push({ name: 'permisos', params: { idRol: idRol } });
+    } catch (error) {
+        console.log(error);
+    }
 };
 
+function handleEnterKey(event) {
+    // Si la tecla presionada es "Enter"
+    if (event.key === 'Enter') {
+        // Detener la propagación del evento para que el modal no se cierre
+        event.stopPropagation();
+    }
+}
 </script>
 
 <template>
@@ -289,11 +326,11 @@ const modificarPermisos = async (idRol) => {
     <!-- Contenido -->
     <div class="contenido">
         <!-- Primera parte del contenido: Barra de búsqueda -->
-        <div class="navbar">            
-            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 8px;">
+        <div class="buscador">
+            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 15px;">
                 <div class="container-fluid custom-container">
                     <div class="input-group mb-3">
-                        <input type="text" class="form-control form-control-sm rounded-pill"
+                        <input id="buscador" type="text" class="form-control form-control-sm rounded-pill"
                             style="height: 40px; padding-right: 30px; padding-left: 30px; position: relative;"
                             placeholder="Buscar" v-model="nombre" @input="actualizarTabla(nombre)" />
                         <div style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%);">
@@ -302,7 +339,7 @@ const modificarPermisos = async (idRol) => {
                     </div>
                 </div>
             </div>
-            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 8px;">
+            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 15px;">
                 <div>
                     <button v-show="visibleGestionar" class="btn btn-custom btn-sm mt-2 no-margin-top"
                         @click="abrirModalAgregarRol">
@@ -342,7 +379,7 @@ const modificarPermisos = async (idRol) => {
                                     style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
                                     @click="modificarPermisos(rol.idRol)">
                                     <i class="fas fa-shield-alt text-gray"></i>
-                                </button>                                
+                                </button>
                                 <button class="btn btn-primary mx-1 btn-spacer" type="submit"
                                     style="background-color: hsl(0, 0%, 96%); border-color: #f4f4f4; height: 37px;"
                                     @click="abrirModalEditar(rol)">
@@ -367,8 +404,7 @@ const modificarPermisos = async (idRol) => {
                 </tbody>
             </table>
         </div>
-
-        <!-- Acivar e inactivar -->
+        <!------------------------------------------- Acivar e inactivar -------------------------------------------->
         <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -389,8 +425,7 @@ const modificarPermisos = async (idRol) => {
                 </div>
             </div>
         </div>
-
-        <!-- Modal para agregar rol -->
+        <!------------------------------------------------ Modal para agregar rol ----------------------------------->
         <div class="modal fade" id="modalAgregarRol" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -401,9 +436,10 @@ const modificarPermisos = async (idRol) => {
                     <div class="modal-body">
                         <form>
                             <div class="mb-3 text-start">
-                                <label class="form-label">Rol</label>
+                                <label for="nombreRol" class="form-label">Rol</label>
                                 <input type="text" class="form-control" id="nombreRol" v-model="nuevoRol"
-                                    placeholder="Nombre del Rol" @input="resetCampoVacio" />
+                                    placeholder="Nombre del Rol" @input="resetCampoVacio"
+                                    @keydown.enter.prevent="handleEnterKey" />
                             </div>
                             <div v-if="rolExistente" class="alert alert-danger d-flex align-items-center"
                                 style="height: 30px; font-size: 16px" role="alert">
@@ -424,8 +460,7 @@ const modificarPermisos = async (idRol) => {
                 </div>
             </div>
         </div>
-
-        <!-- Modal para modificar rol -->
+        <!------------------------------------------ Modal para modificar rol ------------------------------------------>
         <div class="modal fade" id="modalEditarRol" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -436,9 +471,10 @@ const modificarPermisos = async (idRol) => {
                     <div class="modal-body">
                         <form>
                             <div class="mb-3 text-start">
-                                <label class="form-label">Rol</label>
+                                <label for="nombreRolEditar" class="form-label">Rol</label>
                                 <input type="text" class="form-control" id="nombreRolEditar"
-                                    v-model="rolSeleccionado.nombre" @input="resetCampoVacio" />
+                                    v-model="rolSeleccionado.nombre" @input="resetCampoVacio"
+                                    @keydown.enter.prevent="handleEnterKey" />
                             </div>
                             <div v-if="rolExistente" class="alert alert-danger d-flex align-items-center"
                                 style="height: 30px; font-size: 16px" role="alert">
@@ -499,7 +535,11 @@ const modificarPermisos = async (idRol) => {
     height: 450px;
 }
 
-.navbar {
+.buscador {
+    display: flex;
+    align-items: center;
+    /* Centra el div horizontalmente */
+    justify-content: space-between;
     border-bottom: 1px solid black;
     margin-bottom: 20px;
 }
@@ -587,6 +627,10 @@ const modificarPermisos = async (idRol) => {
     outline: none;
     box-shadow: none;
     /* Elimina el contorno y la sombra al hacer clic */
+}
+
+.btn-amarillo:active {
+    background-color: #FFCA0A;
 }
 
 .my-custom-scrollbar {

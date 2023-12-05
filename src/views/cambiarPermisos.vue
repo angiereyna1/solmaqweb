@@ -15,6 +15,14 @@ const permisoSeleccionados = ref({}); // Objeto para mantener el estado de los c
 const permisosRol = ref([]); // Variable reactiva para almacenar los permisos del rol
 const idRol = route.params.idRol;
 
+onMounted(async () => {
+    try {
+        await consultarPermisos();    
+    } catch (error) {
+        console.log(error);
+    }
+});
+
 const consultarPermisos = async () => {
     try {
         const permisosDelRol = await obtenerPermisosDelRol(idRol);
@@ -29,11 +37,6 @@ const consultarPermisos = async () => {
     } catch (error) {
         console.error('Error al obtener permisos:', error);
     }
-};
-
-const redirigirARoles = () => {
-    // Redirigir a la interfaz de roles después de hacer clic en "Aceptar"
-    router.push('/roles');
 };
 
 const guardarPermisos = async () => {
@@ -60,10 +63,10 @@ const guardarPermisos = async () => {
     }
 };
 
-onMounted(() => {
-    consultarPermisos();
-});
-
+const redirigirARoles = () => {
+    // Redirigir a la interfaz de roles después de hacer clic en "Aceptar"
+    router.push('/roles');
+};
 </script>
 
 <template>
@@ -79,7 +82,8 @@ onMounted(() => {
                     <tbody>
                         <tr v-for="permiso in permisos" :key="permiso.idPermiso">
                             <td style="width: 3vw;">
-                                <input type="checkbox" v-model="permisoSeleccionados[permiso.idPermiso]" />
+                                <input type="checkbox" v-model="permisoSeleccionados[permiso.idPermiso]"
+                                    :id="'permiso_' + permiso.idPermiso" />
                             </td>
                             <td>{{ permiso.Permiso }}</td>
                         </tr>
@@ -94,30 +98,28 @@ onMounted(() => {
             <button class="btn btn-guardar" @click="guardarPermisos()">Guardar</button>
         </div>
     </div>
-
-    <!-- Modal de confirmación de permisos actualizados -->
-  <div class="modal fade" id="modalPermisosActualizados" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">Permisos Actualizados</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <!--------------------------------- Modal de confirmación de permisos actualizados ----------------------------------------->
+    <div class="modal fade" id="modalPermisosActualizados" tabindex="-1" aria-labelledby="exampleModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">¡Permisos Actualizados!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Permisos actualizados correctamente.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-amarillo" data-bs-dismiss="modal" @click="redirigirARoles">
+                        Aceptar
+                    </button>
+                </div>
+            </div>
         </div>
-        <div class="modal-body">
-          Permisos actualizados correctamente.
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-amarillo" data-bs-dismiss="modal" @click="redirigirARoles">
-            Aceptar
-          </button>
-        </div>
-      </div>
     </div>
-  </div>
 </template>
   
-
-
 <style scoped>
 .contenido {
     margin-top: 1.5%;

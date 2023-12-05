@@ -37,16 +37,25 @@ export const usuariosStore = defineStore("usuarios",{
             console.log(error)
         }
     },
+    
+    async obtenerIdUsuarioPorUser(user){
+        try {
+            const res = await axios.post('http://localhost:4000/api/usuarios/idUsuario',{"Usuario":user})
+            // console.log(res.data.body)
+            return res.data.body;
+        } catch (error) {
+            console.log(error)
+        }
+    },
 
-    //Trae los datos solo del usuario especificado, hay que mandarle el idEmpleados
     async obtenerUnUser(idUsuario){
         try {
-            if (idEmpleados=="") {
+            if (idUsuario=="") {
                 throw error
             }
-            console.log('http://localhost:4000/api/usuarios/'+idUsuario)
+            // console.log('http://localhost:4000/api/usuarios/'+idUsuario)
             const res = await axios.get('http://localhost:4000/api/usuarios/'+idUsuario)
-            return res;
+            return res.data.body;
         } catch (error) {
             throw error
         }
@@ -89,5 +98,47 @@ export const usuariosStore = defineStore("usuarios",{
             
         }
     },    
+
+    async cambiarEstatus(idUsuario, estado){
+        try {
+            const res = await axios.post('http://localhost:4000/api/usuarios',{"idUsuario":idUsuario,
+            "Activo": estado
+           })
+
+           console.log(res)
+            return ;
+            
+        } catch (error) {
+            console.log(error)
+            return ;
+            
+        }
+    },
+
+    async inactivar(idUsuario, estado){
+        try {
+            const res = await axios.post('http://localhost:4000/api/usuarios',{"idUsuario":idUsuario,
+            "Activo": estado
+           })
+
+           console.log(res)
+            return ;
+            
+        } catch (error) {
+            console.log(error)
+            return ;
+            
+        }
+    },
+
+    //Trae TODOS los nombres de usuario que existen
+    async obtenerNicknames(){
+        try {
+            const res = await axios.get('http://localhost:4000/api/usuarios/nicks')
+            return res;
+        } catch (error) {
+            console.log(error)
+        }
+    }
   } 
 })

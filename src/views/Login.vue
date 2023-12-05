@@ -1,17 +1,22 @@
 <script setup>
 import { ref } from "vue"; //para usar variables reactivas
 import { loginStore } from "../stores/login";
+import { usuariosStore } from "../stores/usuarios";
+import { carritoStore } from "../stores/carrito"
 import router from "../router/index";
 
 const { login } = loginStore();
+const { obtenerIdUsuarioPorUser } = usuariosStore();
+const { initCarrito } = carritoStore();
 
 const usuario = ref("");
 const contrasena = ref("");
 const aceptado = ref(true);
 const campovacio = ref(false);
 const inputPass = ref("password");
-var tried = false;
+let tried = false;
 
+let idUsuario = '';
 
 function mostrarTexto() {
   inputPass.value = "text";
@@ -27,6 +32,7 @@ function quitarEspacios() {
 }
 
 function camposVacios() {
+  aceptado.value = true; // Establecer aceptado a true en cada llamada a la función
   if (tried && (usuario.value == "" || contrasena.value == "")) {
     campovacio.value = true;
     return true;
@@ -41,12 +47,15 @@ async function iniciarSesion() {
   quitarEspacios();
   if (!camposVacios()) {
     try {
-      var iniciado = await login({
+      let iniciado = await login({
         Usuario: usuario.value,
         Contrasena: contrasena.value,
       });
       if (iniciado) {
         console.log("Sesión iniciada");
+        idUsuario = await obtenerIdUsuarioPorUser(usuario.value);
+        console.log(idUsuario);
+        initCarrito(idUsuario);
         irMenu();
       } else {
         aceptado.value = false;
@@ -58,7 +67,6 @@ async function iniciarSesion() {
   }
 }
 
-
 function irMenu() {
   router.push({ name: "home" });
 }
@@ -67,7 +75,7 @@ function irMenu() {
 <template>
   <!------------------------------------------ Lado izquierdo ------------------------------------------------------->
   <div class="contenedor-imagen">
-    <img src="../assets/Fondo.png" alt="Imagen" class="imagen" />
+    <img src="../assets/CNC.jpg" alt="Imagen" class="imagen" />
   </div>
   <!------------------------------------------- Lado derecho -------------------------------------------------------->
   <div class="contenedor-formulario">
@@ -78,11 +86,11 @@ function irMenu() {
       <div>
         <div>
           <input type="text" class="input-usuario" v-model.trim="usuario" @input="camposVacios()" autofocus
-            placeholder="Usuario" />
+            placeholder="Usuario" maxlength="15" id="usuario"/>
         </div>
         <div>
           <input :type="inputPass" class="input-contrasena" v-model.trim="contrasena" @input="camposVacios()"
-            placeholder="Contraseña" />
+            placeholder="Contraseña" maxlength="20" id="contrasena"/>
           <button class="eyeBtn" type="button" id="button-addon2" @mousedown="mostrarTexto()" @mouseup="ocultarTexto()">
             <img src="../assets/mostrarcontraseña.png" />
           </button>
@@ -112,7 +120,7 @@ function irMenu() {
   /* Alinea el contenedor a la izquierda */
   width: 55%;
   /* Ocupa el 50% del ancho de su contenedor padre */
-  height: 619px;
+  height: 607px;
 }
 
 .contenedor-formulario {
@@ -120,7 +128,7 @@ function irMenu() {
   /* Alinea el contenedor a la izquierda */
   width: 45%;
   /* Ocupa el 50% del ancho de su contenedor padre */
-  height: 619px;
+  height: 605px;
   text-align: center;
   background-color: white;
 }
@@ -160,7 +168,7 @@ function irMenu() {
   outline: none;
   /* Elimina el contorno al hacer clic en el campo de entrada */
   margin-bottom: 7%;
-  width: 500px;
+  width: 80%;
 }
 
 .input-usuario::placeholder {
@@ -189,7 +197,7 @@ function irMenu() {
   outline: none;
   /* Elimina el contorno al hacer clic en el campo de entrada */
   transform: translateX(6%);
-  width: 500px;
+  width: 80%;
   margin-bottom: 2%;
   margin-right: 3%;
 }
@@ -230,7 +238,7 @@ function irMenu() {
   /* Cambia el cursor al pasar el mouse */
   transition: background-color 0.3s ease;
   /* Agrega una transición suave al color de fondo */
-  width: 350px;
+  width: 60%;
   margin-top: 8%;
 }
 

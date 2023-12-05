@@ -1,3 +1,6 @@
+<!-- /////////////////////////////////// TO DO //////////////////////////////////// -->
+<!-- Agregar que se puede buscar también por apellidos -->
+<!-- Agregar botón de desactivar -->
 <script setup>
 import { ref, computed, onMounted } from "vue";
 import router from "../router";
@@ -10,7 +13,7 @@ import cabecera from "../components/Menu.vue";
 
 const { obtenerPermisos } = permisosRolesStore();
 const { getUser } = loginStore();
-const { obtenerUsuarios, obtenerIdPorUser } = usuariosStore();
+const { obtenerUsuarios, obtenerIdPorUser, setIdUsuario, cambiarEstatus } = usuariosStore();
 const { obtenerRoles } = rolesStore();
 const { obtenerClientes } = clientesStore();
 
@@ -24,12 +27,28 @@ const roles = ref([]); // Variable reactiva para almacenar los roles
 const clientes = ref([]); // Variable reactiva para almacenar los clientes
 const visibleGestionar = ref("");
 
+const idUsuarioCambiarEstatus = ref();
+const estadoCambiarEstatus = ref(null);
+
+
+const usuarioExistente = ref(false);
+
+let modalConfirmacion;
+let nombre;
+
 onMounted(async () => {
     try {
         await filtrarUsuarios(1);
         consultarUsuarios();
         consultarRoles();
         consultarClientes();
+
+        // modal confirmar eliminar
+        modalConfirmacion = new bootstrap.Modal(document.getElementById("modalConfirmacion"), {
+            backdrop: "static", // Evita que el modal se cierre al hacer clic fuera del modal
+            keyboard: false,
+        });
+
         // Permisos
         const idRol = await obtenerIdPorUser(Usuario);
         console.log(Usuario);
@@ -97,6 +116,46 @@ const botonesClases = computed(() => {
         inactivos: usuariosDesplegados.value.some(usuario => usuario.Activo === 0)
     };
 });
+
+// Función principal para cambiar el estado de usuarios
+async function cambiarEstatusUsuarios(idUsuario, estado) {
+    try {
+        await cambiarEstatus(idUsuario, !estado);
+        await filtrarUsuarios(estado);
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+
+const confirmar = (idUsuario, estado) => {
+    // Guarda el idUsuario y el estado en las referencias adecuadas
+    idUsuarioCambiarEstatus.value = idUsuario;
+    estadoCambiarEstatus.value = estado;
+    // Muestra el modal de confirmación
+    modalConfirmacion.show();
+};
+
+const modificarUsuario = async (idUsuario) => {
+    try {
+        setIdUsuario(idUsuario);
+        router.push({ name: 'modificarUsuario', params: { idUsuario: idUsuario } });
+    } catch (error) {
+        console.log(error);
+    }
+};
+
+function actualizarTabla(nombre) {
+    if (nombre.trim() === "") {
+        usuarioExistente.value = usuariosArray.value;
+        usuariosDesplegados.value = usuariosArray.value; // Restablece la tabla cuando el campo de búsqueda está vacío
+    } else {
+        usuariosDesplegados.value = usuariosArray.value.filter(usr =>
+            usr.Nombre.toLowerCase().includes(nombre.toLowerCase())
+        );
+    }
+}
 </script>
 
 <template>
@@ -105,11 +164,11 @@ const botonesClases = computed(() => {
     <!-- Contenido -->
     <div class="contenido mx-auto">
         <!-- Primera parte del contenido: Barra de búsqueda -->
-        <div class="navbar">
-            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 8px;">
+        <div class="buscador">
+            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 15px;">
                 <div class="container-fluid custom-container">
                     <div class="input-group mb-3">
-                        <input type="text" class="form-control form-control-sm rounded-pill"
+                        <input id="buscador" type="text" class="form-control form-control-sm rounded-pill"
                             style="height: 40px; padding-right: 30px; padding-left: 30px; position: relative;"
                             placeholder="Buscar" v-model="nombre" @input="actualizarTabla(nombre)" />
                         <div style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%);">
@@ -118,12 +177,13 @@ const botonesClases = computed(() => {
                     </div>
                 </div>
             </div>
-            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 8px;">
+            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 15px;">
                 <div>
-                    <button v-show="visibleGestionar" class="btn btn-custom btn-sm mt-2 no-margin-top"
-                        @click="abrirModalAgregarRol">
-                        <b>Agregar &nbsp;</b><i class="fas fa-plus fa-plus-icon"></i>
-                    </button>
+                    <router-link to="usuarios/agregarUsuario" style="text-decoration: none;">
+                        <button v-show="visibleGestionar" class="btn btn-custom btn-sm mt-2 no-margin-top" type="submit">
+                            <b>Agregar &nbsp;</b><i class="fas fa-plus fa-plus-icon"></i>
+                        </button>
+                    </router-link>
                 </div>
             </div>
         </div>
@@ -161,26 +221,25 @@ const botonesClases = computed(() => {
                         <td> {{ getNombreRol(usuario.idRol) }} </td>
                         <td> {{ usuario.Telefono }} </td>
                         <td> {{ usuario.Correo }} </td>
-                        <td> {{ getRazonSocial(usuario.idCliente) }} </td>
+                        <td>{{ getRazonSocial(usuario.idCliente) || 'No aplica' }}</td>
                         <th scope="row" style="width: 15vw;">
-                            <div class="align-items-center" v-show="visibleGestionar">                                
+                            <div class="align-items-center" v-show="visibleGestionar">
                                 <button class="btn btn-primary mx-1 btn-spacer" type="submit"
                                     style="background-color: hsl(0, 0%, 96%); border-color: #f4f4f4; height: 37px;"
-                                    @click="abrirModalEditar(rol)">
+                                    @click="modificarUsuario(usuario.idUsuario)">
                                     <i class="fa-solid fa-pen-to-square text-gray"></i>
                                 </button>
-                                <!-- <button v-if="rol.Activo === 1 && visibleGestionar" class="btn btn-primary mx-1 btn-delete"
-                                    type="submit" style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
-                                    @click="confirmar(rol.idRol, 0)">
+                                
+                                <button v-if="usuario.Activo === 1 && visibleGestionar" class="btn btn-primary mx-1 btn-delete" type="submit"
+                                    style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
+                                    @click="confirmar(usuario.idUsuario, usuario.Activo)">
                                     <i class="fas fa-times text-gray"></i>
                                 </button>
-                                <button v-else-if="rol.Activo === 0 && visibleGestionar"
-                                    class="btn btn-primary mx-1 btn-restore" type="submit"
+                                <button v-else-if="usuario.Activo === 0 && visibleGestionar" class="btn btn-primary mx-1 btn-delete" type="submit"
                                     style="background-color: #f4f4f4; border-color: #f4f4f4; height: 37px;"
-                                    @click="confirmar(rol.idRol, 1)">
+                                    @click="confirmar(usuario.idUsuario, usuario.Activo)">
                                     <i class="fas fa-check text-gray"></i>
-                                </button> -->
-
+                                </button>
                             </div>
                         </th>
                     </tr>
@@ -188,7 +247,28 @@ const botonesClases = computed(() => {
             </table>
 
         </div>
+    </div>
 
+    <!-- Acivar e inactivar -->
+    <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exampleModalLabel">Estatus del Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <span v-if="estadoCambiarEstatus === 1">¿Está seguro de que quiere inactivar este usuario?</span>
+                    <span v-else>¿Está seguro de que quiere activar este usuario?</span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-amarillo" data-bs-dismiss="modal"
+                        @click="cambiarEstatusUsuarios(idUsuarioCambiarEstatus, estadoCambiarEstatus)">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 
@@ -228,7 +308,11 @@ const botonesClases = computed(() => {
     width: 95%;
 }
 
-.navbar {
+.buscador {
+    display: flex;    
+    align-items: center;            
+    /* Centra el div horizontalmente */
+    justify-content: space-between;
     border-bottom: 1px solid black;
     margin-bottom: 20px;
 }

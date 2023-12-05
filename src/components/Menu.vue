@@ -1,16 +1,19 @@
 <script setup>
 /////////////////////////////////// TO DO ////////////////////////////////////
 // Optimizar codigo
-// comprobar que al borrar un permiso propio se actuliza la navbar
+//☑ comprobar que al borrar un permiso propio se actuliza la navbar LISTO
+//☑ agregar btn de carrito LISTO
 import { ref, onMounted, onBeforeMount } from "vue";
 import { loginStore } from "../stores/login";
+import { carritoStore } from "../stores/carrito"
 import { usuariosStore } from "../stores/usuarios";
 import { permisosRolesStore } from '../stores/permisosRoles';
 import router from "../router/index";
 
 const { cerrarSesion, getUser } = loginStore();
-const { obtenerIdPorUser } = usuariosStore();
+const { obtenerIdPorUser, obtenerIdUsuarioPorUser } = usuariosStore();
 const { obtenerPermisos } = permisosRolesStore();
+const { guardarCarrito } = carritoStore();
 
 const props = defineProps(["interfaz"]);
 const interfaz = props.interfaz;
@@ -26,7 +29,12 @@ const visiblePedir = ref("");
 
 const Usuario = getUser();
 
+let idUsuario = '';
+
 async function logOut() {
+  idUsuario = await obtenerIdUsuarioPorUser(Usuario);
+  console.log(idUsuario);
+  guardarCarrito(idUsuario);
   await cerrarSesion();
   // Redirige al usuario a la página de inicio de sesión después de cerrar sesión
   redirigir("login");
@@ -49,12 +57,12 @@ const reportes = ref(null);
 const carrito = ref(null);
 
 onMounted(async () => {
-  const idRol = await obtenerIdPorUser(Usuario); 
+  const idRol = await obtenerIdPorUser(Usuario);
   console.log(Usuario);
   console.log(idRol);
   const permisos = await obtenerPermisos(idRol);
-  console.log(permisos);  
-  
+  console.log(permisos);
+
   permisos.includes("Consultar Roles") ? visibleRoles.value = true : visibleRoles.value = false;
   permisos.includes("Consultar Usuarios") ? visibleUsuarios.value = true : visibleUsuarios.value = false;
   permisos.includes("Consultar Clientes") ? visibleClientes.value = true : visibleClientes.value = false;
@@ -62,8 +70,8 @@ onMounted(async () => {
   permisos.includes("Consultar RFQ") ? visibleRFQ.value = true : visibleRFQ.value = false;
   permisos.includes("Consultar Pedidos") ? visiblePedidos.value = true : visiblePedidos.value = false;
   permisos.includes("Generar Reportes") ? visibleReportes.value = true : visibleReportes.value = false;
-  permisos.includes("Realizar Pedidos") ? visiblePedir.value = true : visiblePedir.value = false;      
-  
+  permisos.includes("Realizar Pedidos") ? visiblePedir.value = true : visiblePedir.value = false;
+
   //aun no jala - YA JALA LO HIZO MI NOVIO BONITO 12/10
   switch (interfaz) {
     case "menu":
@@ -89,6 +97,30 @@ onMounted(async () => {
       clientes.value.style.borderBottom = "#FFCA0A";
       clientes.value.style.borderStyle = "solid";
       clientes.value.style.fontWeight = "bold";
+      break;
+    case "catalogo":
+      catalogo.value.style.borderColor = "white";
+      catalogo.value.style.borderBottom = "#FFCA0A";
+      catalogo.value.style.borderStyle = "solid";
+      catalogo.value.style.fontWeight = "bold";
+      break;
+    case "rfq":
+      rfq.value.style.borderColor = "white";
+      rfq.value.style.borderBottom = "#FFCA0A";
+      rfq.value.style.borderStyle = "solid";
+      rfq.value.style.fontWeight = "bold";
+      break;
+    case "pedidos":
+      pedidos.value.style.borderColor = "white";
+      pedidos.value.style.borderBottom = "#FFCA0A";
+      pedidos.value.style.borderStyle = "solid";
+      pedidos.value.style.fontWeight = "bold";
+      break;
+    case "reportes":
+      reportes.value.style.borderColor = "white";
+      reportes.value.style.borderBottom = "#FFCA0A";
+      reportes.value.style.borderStyle = "solid";
+      reportes.value.style.fontWeight = "bold";
       break;
   }
 })
@@ -136,13 +168,13 @@ function jumpTo(nombreDeInterfazAdondeVamos) {
         <button v-show="visibleRoles" ref="roles" class="btn" @click="jumpTo('roles')">Roles</button>
         <button v-show="visibleUsuarios" ref="usuarios" class="btn" @click="jumpTo('usuarios')">Usuarios</button>
         <button v-show="visibleClientes" ref="clientes" class="btn" @click="jumpTo('clientes')">Clientes</button>
-        <button v-show="visibleCatalogo" ref="catalogo" class="btn" @click="jumpTo()">Catalogo</button>
-        <button v-show="visibleRFQ" ref=" rfq" class="btn" @click="jumpTo()">RFQ</button>
-        <button v-show="visiblePedidos" ref="pedidos" class="btn" @click="jumpTo()">Pedidos</button>
-        <button v-show="visibleReportes" ref="reportes" class="btn" @click="jumpTo()">Reportes</button>
+        <button v-show="visibleCatalogo" ref="catalogo" class="btn" @click="jumpTo('catalogo')">Catalogo</button>
+        <button v-show="visibleRFQ" ref="rfq" class="btn" @click="jumpTo('rfq')">RFQ</button>
+        <button v-show="visiblePedidos" ref="pedidos" class="btn" @click="jumpTo('pedidos')">Pedidos</button>
+        <button v-show="visibleReportes" ref="reportes" class="btn" @click="jumpTo('reportes')">Reportes</button>
         <!-- Botón del carrito a la derecha -->
-        <button v-show="visiblePedir" ref="carrito" class="btn carrito-btn" @click="jumpTo()"><img class="carrito-img"
-            src="../assets/agregar-carrito.png" /></button>
+        <button v-show="visiblePedir" ref="carrito" class="btn carrito-btn" @click="jumpTo('carrito')"><img
+            class="carrito-img" src="../assets/agregar-carrito.png" /></button>
       </div>
     </div>
 
@@ -253,6 +285,8 @@ function jumpTo(nombreDeInterfazAdondeVamos) {
   background-color: lightgray;
   border-radius: 30px;
   color: black;
+  width: auto;
+  text-align: center;
 }
 
 .btn-custom:hover {
@@ -266,7 +300,7 @@ function jumpTo(nombreDeInterfazAdondeVamos) {
 .carrito-btn {
   margin-left: auto;
   /* Empuja el botón del carrito a la derecha */
-  margin-right: 2%;
+  margin-right: 3%;
   width: 50px !important;
   height: 35px;
   border: none;
@@ -283,7 +317,7 @@ function jumpTo(nombreDeInterfazAdondeVamos) {
 }
 
 .carrito-img {
-  width: 25px;
+  width: 38px;
   height: auto;
 }
 </style>

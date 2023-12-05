@@ -14,7 +14,7 @@ export const clientesStore = defineStore("clientes",{
     },
 
     getCliente(){
-        return this.idUsuarioActual
+        return this.idClienteActual
     },
 
     async obtenerClientes(){
@@ -27,12 +27,21 @@ export const clientesStore = defineStore("clientes",{
             throw(error);
         }
     },
+
+    async obtenerClientePorId(idCliente){
+        try {
+            const res = await axios.get('http://localhost:4000/api/clientes/'+idCliente)
+            return res.data.body;
+            
+        } catch (error) {
+            console.log(error)
+            throw(error);
+        }
+    },
     
-    async agregarCliente(nombreEmpresa, rfc, calle, numero, colonia, cp){
-        try {
-            const res = await axios.post('http://localhost:4000/api/clientes',{"idCliente":0,
-            "RazonSocial":nombreEmpresa, "RFC": rfc, "Calle": calle, "Numero":numero, "Colonia":colonia,"CP":cp, "Activo":1
-           })
+    async agregarClient(cliente){
+        try {            
+            const res = await axios.post('http://localhost:4000/api/clientes/',cliente)
 
            console.log(res)
             return ;
@@ -43,12 +52,10 @@ export const clientesStore = defineStore("clientes",{
             
         }
     },
-    async actualizarCliente(idCliente, nombreEmpresa, rfc, calle, numero, colonia, cp){
-        try {
-            const res = await axios.post('http://localhost:4000/api/clientes',{"idCliente":idCliente,
-            "RazonSocial":nombreEmpresa, "RFC": rfc, "Calle": calle, "Numero":numero, "Colonia":colonia,"CP":cp
-           })
 
+    async actualizarClient(cliente){
+        try {
+            const res = await axios.post('http://localhost:4000/api/clientes',cliente)
            console.log(res)
             return ;
             
@@ -57,7 +64,8 @@ export const clientesStore = defineStore("clientes",{
             return ;
             
         }
-    },
+    },    
+
     async cambiarEstatus(idCliente, estado){
         try {
             const res = await axios.post('http://localhost:4000/api/clientes',{"idCliente":idCliente,
@@ -73,6 +81,7 @@ export const clientesStore = defineStore("clientes",{
             
         }
     },
+    
     async eliminarCliente(idCliente){
         try{
 
@@ -87,6 +96,15 @@ export const clientesStore = defineStore("clientes",{
             return ;
             
         }
-    }   
+    },
+    //Trae TODOS los RFC que existen
+    async obtenerRFC(){
+        try {
+            const res = await axios.get('http://localhost:4000/api/clientes/rfcs')
+            return res;
+        } catch (error) {
+            console.log(error)
+        }
+    }
   } 
 })

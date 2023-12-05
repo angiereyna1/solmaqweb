@@ -4,32 +4,28 @@ import router from "../router";
 import { permisosRolesStore } from '../stores/permisosRoles';
 import { usuariosStore } from "../stores/usuarios";
 import { clientesStore } from "../stores/clientes";
-
 import { loginStore } from "../stores/login";
 import cabecera from "../components/Menu.vue";
 
 const { obtenerPermisos } = permisosRolesStore();
 const { getUser } = loginStore();
-const { obtenerIdPorUser, obtenerUsuarios } = usuariosStore();
+const { obtenerIdPorUser, obtenerUsuarios, inactivar } = usuariosStore();
 const { obtenerClientes, cambiarEstatus, eliminarCliente, setCliente } = clientesStore();
 
 const visibleGestionar = ref("");
 const Usuario = getUser();
-const clientesIds = ref({});
-const clientes = ref([]);
+
 const clientesArray = ref([]);
 const clientesDesplegados = ref([]);
-const buscador = ref({});
+
 const idClienteCambiarEstatus = ref();
 const estadoCambiarEstatus = ref(null);
-const nuevoCliente = ref(""); // variable para almacenar el nuevo cliente
-const campoVacio = ref(false);
+
 const clienteExistente = ref(false);
 
-const usuariosIds = ref({});
-const usuarios = ref([]);
 const usuariosArray = ref([]);
 const usuariosDesplegados = ref([]);
+const usuariosObtenidos = ref([]);
 
 let modalConfirmacion;
 let nombre;
@@ -37,11 +33,11 @@ let nombre;
 onMounted(async () => {
     try {
         // Carga clientes activos por defecto al entrar en la página
-        await filtrarClientes(1);
-        consultarClientes();
+        filtrarClientes(1);
 
         // modal confirmar eliminar
         modalConfirmacion = new bootstrap.Modal(document.getElementById("modalConfirmacion"), {
+            backdrop: "static", // Evita que el modal se cierre al hacer clic fuera del modal
             keyboard: false,
         });
 
@@ -58,25 +54,19 @@ onMounted(async () => {
 });
 
 const consultarClientes = async (activo) => {
-    clientesArray.value = [];
-    clientesIds.value = [];
     try {
-        clientes.value = await obtenerClientes(activo);
-        const body = clientes.value.data.body;
-        console.log(clientes.value);
-        for (var j in body) {
-            if (body[j].Activo == activo) {
-                clientesArray.value.push(body[j]);
-            }
-            clientesIds.value.push(body[j].idCliente)
-        }
-        clientesDesplegados.value = clientesArray.value;
+        const response = await obtenerClientes(activo);
+        const clientes = response.data.body.filter(cliente => cliente.Activo === activo);
+
+        clientesArray.value = clientes;
+        clientesDesplegados.value = clientesArray.value
     } catch (error) {
-        console.log(error);
+        console.error(error);
     }
 };
 
 const filtrarClientes = (activo) => {
+    console.log(activo)
     consultarClientes(activo);
 };
 
@@ -87,8 +77,19 @@ const botonesClases = computed(() => {
     };
 });
 
+// Función para actualizar la tabla al hacer una consulta
+function actualizarTabla(nombre) {
+    if (nombre.trim() === "") {
+        clienteExistente.value = clientesArray.value;
+        clientesDesplegados.value = clientesArray.value; // Restablece la tabla cuando el campo de búsqueda está vacío
+    } else {
+        clientesDesplegados.value = clientesArray.value.filter(cliente =>
+            cliente.RazonSocial.toLowerCase().includes(nombre.toLowerCase()) || cliente.RFC.toLowerCase().includes(nombre.toLowerCase())
+        );
+    }
+}
+
 const confirmar = (idCliente, estado) => {
-    // Guarda el idCliente y el estado en las referencias adecuadas
     idClienteCambiarEstatus.value = idCliente;
     estadoCambiarEstatus.value = estado;
     // Muestra el modal de confirmación
@@ -96,52 +97,64 @@ const confirmar = (idCliente, estado) => {
 };
 
 const consultarUsuarios = async (idCliente) => {
-    usuariosArray.value = [];
-    usuariosIds.value = [];
     try {
-        usuarios.value = await obtenerUsuarios(idCliente);
-        const body = usuarios.value.data.body;
-        console.log(usuarios.value);
-        for (var j in body) {
-            if (body[j].idCliente == idCliente) {
-                usuariosArray.value.push(body[j]);
-            }
-            usuariosIds.value.push(body[j].idUsuario)
-        }
-        usuariosDesplegados.value = usuariosArray.value;
-        console.log(usuariosDesplegados.value)
+        const response = await obtenerUsuarios(idCliente);
+        const usuarios = response.data.body.filter(user => user.idCliente === idCliente);
+
+        usuariosArray.value = usuarios;
+        usuariosDesplegados.value = usuariosArray.value
     } catch (error) {
-        console.log(error);
+        console.error(error);
     }
 };
 
 // Función para verificar si hay un usuario con un idCliente específico
 const existeUsuarioConCliente = async (idCliente) => {
     await consultarUsuarios(idCliente);
-    const usuariosObtenidos = usuariosArray.value;
+    usuariosObtenidos.value = usuariosArray.value;
     console.log(idCliente)
-    console.log(usuariosObtenidos)
-    return usuariosObtenidos.length > 0;
+    return usuariosObtenidos.value.length > 0;
 };
 
-// Función principal para cambiar el estado de clientes
 async function cambiarEstatusClientes(idCliente, estado) {
     try {
+        let usuariosConCliente = await existeUsuarioConCliente(idCliente);
+
         if (estado === 0) {
-            if (await existeUsuarioConCliente(idCliente)) {
+            if (usuariosConCliente) {
+                // Guarda los usuarios obtenidos anteriormente
+                const usuariosAnteriores = usuariosObtenidos.value;
                 // Cambiar el estado sin eliminar el cliente
                 await cambiarEstatus(idCliente, estado);
+                // Filtrar clientes independientemente del estado
+                filtrarClientes(estado);
+                // Itera sobre los usuarios obtenidos antes del cambio de estado
+                for (let i = 0; i < usuariosAnteriores.length; i++) {
+                    const idUsuario = usuariosAnteriores[i].idUsuario;
+                    await inactivar(idUsuario, estado);
+                }
+                alert("Cliente modificado a inactivos exitosamente.")
+
             } else {
                 console.log('No hay usuarios usando el cliente');
-                console.log(idCliente)
                 await eliminarCliente(idCliente);
+                alert("Cliente eliminado permanentemente.")
+                // Filtrar clientes independientemente del estado
+                filtrarClientes(estado);
             }
         } else {
+            // Guarda los usuarios obtenidos anteriormente
+            const usuariosAnteriores = usuariosObtenidos.value;
             await cambiarEstatus(idCliente, estado);
+            // Filtrar clientes independientemente del estado
+            filtrarClientes(estado);
+            // Itera sobre los usuarios obtenidos antes del cambio de estado
+            for (let i = 0; i < usuariosAnteriores.length; i++) {
+                const idUsuario = usuariosAnteriores[i].idUsuario;
+                await inactivar(idUsuario, estado);
+            }
+            alert("Cliente modificado a activos exitosamente.")
         }
-        // Filtrar clientes independientemente del estado
-        await filtrarClientes(!estado);
-
     } catch (error) {
         console.error(error);
     }
@@ -163,11 +176,11 @@ const modificarCliente = async (idCliente) => {
     <!-- Contenido -->
     <div class="contenido mx-auto">
         <!-- Primera parte del contenido: Barra de búsqueda -->
-        <div class="navbar">
-            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 8px;">
+        <div class="buscador">
+            <div style="justify-content: left;display: flex;width: 50%; margin-bottom: 15px;">
                 <div class="container-fluid custom-container">
                     <div class="input-group mb-3">
-                        <input type="text" class="form-control form-control-sm rounded-pill"
+                        <input id="buscador" type="text" class="form-control form-control-sm rounded-pill"
                             style="height: 40px; padding-right: 30px; padding-left: 30px; position: relative;"
                             placeholder="Buscar" v-model="nombre" @input="actualizarTabla(nombre)" />
                         <div style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%);">
@@ -176,7 +189,7 @@ const modificarCliente = async (idCliente) => {
                     </div>
                 </div>
             </div>
-            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 8px;">
+            <div style="justify-content: right; display: flex; width: 50%; margin-bottom: 15px;">
                 <div>
                     <router-link to="clientes/agregarCliente" style="text-decoration: none;">
                         <button v-show="visibleGestionar" class="btn btn-custom btn-sm mt-2 no-margin-top" type="submit">
@@ -214,7 +227,7 @@ const modificarCliente = async (idCliente) => {
                     <tr v-for="cliente in clientesDesplegados">
                         <td> {{ cliente.RazonSocial }} </td>
                         <td> {{ cliente.RFC }} </td>
-                        <td> {{ cliente.Calle }} {{ cliente.Numero }} {{ cliente.Colonia }} {{ cliente.CP }} </td>
+                        <td> {{ cliente.Calle }} #{{ cliente.Numero }}, {{ cliente.Colonia }}, {{ cliente.CP }} </td>
                         <th scope="row" style="width: 15vw;">
                             <div class="align-items-center" v-show="visibleGestionar">
                                 <button class="btn btn-primary mx-1 btn-spacer" type="submit"
@@ -240,8 +253,7 @@ const modificarCliente = async (idCliente) => {
                 </tbody>
             </table>
         </div>
-
-        <!-- Acivar e inactivar -->
+        <!---------------------------------------------- Acivar e inactivar ----------------------------------------------->
         <div class="modal fade" id="modalConfirmacion" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -262,7 +274,6 @@ const modificarCliente = async (idCliente) => {
                 </div>
             </div>
         </div>
-
     </div>
 </template>
 
@@ -275,18 +286,15 @@ const modificarCliente = async (idCliente) => {
 }
 
 .titulo {
-    font-family: 'Barlow', sans-serif;
     /* Establece el tipo de letra como Barlow */
+    font-family: 'Barlow', sans-serif;
     font-size: 30px;
-    margin-right: 20px;
-    /* Espacio entre el título y los botones */
+    margin-right: 20px;    
     margin-left: 30px;
-    /* Espacio entre el título y los botones */
 }
 
 .botones button {
-    margin-right: 10px;
-    /* Espacio entre los botones */
+    margin-right: 10px;    
 }
 
 .contenido {
@@ -302,7 +310,10 @@ const modificarCliente = async (idCliente) => {
     width: 95%;
 }
 
-.navbar {
+.buscador {
+    display: flex;
+    align-items: center;    
+    justify-content: space-between;
     border-bottom: 1px solid black;
     margin-bottom: 20px;
 }
@@ -312,8 +323,7 @@ const modificarCliente = async (idCliente) => {
     color: white;
     border-color: #FFCA0A;
     height: 40px;
-    width: 120px;
-    /* Iguala la altura del botón con el input de búsqueda */
+    width: 120px;    
     border-radius: 25px;
     font-family: 'Barlow', sans-serif;
 }
@@ -322,29 +332,21 @@ const modificarCliente = async (idCliente) => {
     margin-top: 0 !important;
 }
 
-.align-self-stretch {
-    align-self: stretch;
-}
-
 .custom-container {
-    height: 40px !important;
-    /* Otros estilos según sea necesario */
+    height: 40px !important;    
 }
 
 .custom-container .input-group {
-    height: 100%;
-    /* Asegura que la altura del input-group sea del 100% del contenedor */
+    height: 100%;    
 }
 
 .custom-container .form-control {
-    height: 100%;
-    /* Asegura que la altura del input sea del 100% del input-group */
+    height: 100%;    
 }
 
 .fa-plus-icon {
     font-weight: bold;
-    transform: scale(1.2);
-    /* Ajusta este valor para hacer el ícono más grueso */
+    transform: scale(1.2);    
 }
 
 .text-gray {
@@ -354,8 +356,7 @@ const modificarCliente = async (idCliente) => {
 .btn-verde {
     background-color: #E5FFE1;
     color: green;
-    font-weight: bold;
-    /* Agrega esta línea para cambiar la letra a negrita */
+    font-weight: bold;    
     width: 90px;
     border: none;
 }
@@ -363,8 +364,7 @@ const modificarCliente = async (idCliente) => {
 .btn-rojo {
     background-color: #FFE1E1;
     color: red;
-    font-weight: bold;
-    /* Agrega esta línea para cambiar la letra a negrita */
+    font-weight: bold;    
     width: 90px;
     border: none;
 }
@@ -387,9 +387,9 @@ const modificarCliente = async (idCliente) => {
 .btn-rojo:focus,
 .btn-amarillo:focus,
 .btn-gris:focus {
+    /* Elimina el contorno y la sombra al hacer clic */
     outline: none;
     box-shadow: none;
-    /* Elimina el contorno y la sombra al hacer clic */
 }
 
 .my-custom-scrollbar {

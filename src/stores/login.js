@@ -27,23 +27,25 @@ export const loginStore = defineStore("login",{
         }
     },
 
-    async permisos(interfaz){
+    async permisos(interfaz) {
       try {
         // Imprime la interfaz en la consola para verificar que se está pasando correctamente
         console.log(interfaz);
-        // Crea un objeto de configuración que incluye el token de autorización en el encabezado
-        let tkn = {
-          headers: {
-            'Authorization':'Bearer '+this.token
-          }
-        }
+
         // Realiza una solicitud POST al servidor con la interfaz y el token de autorización
-        const res = await axios.post('http://localhost:4000/api/usuarios/auth',{Interfaz: interfaz, tkn});
+        const res = await axios.post('http://localhost:4000/api/usuarios/auth', { Interfaz: interfaz }, {
+          headers: {
+            'Authorization': `Bearer ${this.token}`
+          }
+        });
+
         // Devuelve el valor del campo 'permiso' del cuerpo de la respuesta del servidor
-        return res.data.body.permiso;
+        console.log(res.data.body.accepted);
+        return res.data.body.accepted;
       } catch (error) {
         // Maneja cualquier error que pueda ocurrir durante la solicitud
         console.log(error)        
+        return false;
       }
     },
 
