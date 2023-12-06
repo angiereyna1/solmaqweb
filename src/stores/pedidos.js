@@ -71,6 +71,36 @@ export const pedidosStore = defineStore("pedidos", {
                 console.log(res)
                 return;
             }
+        },
+
+        async consultarPorFecha(fechaInicio, fechaFin) {
+            try {
+                const res = await axios.post('http://localhost:4000/api/pedidos/consultarPorFecha', {
+                    fechaInicio,
+                    fechaFin
+                });
+
+                return res.data; // Devuelve los datos recibidos desde la consulta por fechas
+
+            } catch (error) {
+                console.error(error);
+                throw error;
+            }
+        },
+
+        async consultarEstatus(fechaInicio, fechaFin) {
+            try {
+                const res = await axios.post('http://localhost:4000/api/pedidos/consultarEstatus', {
+                    fechaInicio,
+                    fechaFin
+                });
+
+                return res.data; // Devuelve los datos recibidos desde la consulta por fechas
+
+            } catch (error) {
+                console.error(error);
+                throw error;
+            }
         }
 
     }
